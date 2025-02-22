@@ -34,11 +34,12 @@
         }
 
         /* スマホ向けに調整 */
-        // @media (max-width: 768px) {
-        //    .instruction-images {
-        //        width: 100%;
-        //    }
-        //}
+         @media (max-width: 768px) {
+            .instruction-images {
+                width: 30vw; /* 画面幅の30%を基準にする */
+                max-width: 180px; /* 画像が大きくなりすぎないように制限 */
+            }
+        }
 
         .controls {
             display: flex;
@@ -75,7 +76,7 @@
         }
 
         #downloadBtn {
-            width: 300px;
+            width: 200px;
             height: 60px;
         }
 
@@ -188,7 +189,7 @@
             } else {
                 currentFontSize = 45;
             }
-            textArea.style.fontSize = 14 + currentFontSize * 0.4　+ "px";
+            textArea.style.fontSize = 16 + (currentFontSize - 45 ) * 0.2　+ "px";
         }
 
         function generateImage() { //フォントサイズボタン対応
