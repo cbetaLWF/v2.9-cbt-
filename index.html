@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推し布教Photoめーかー!!(β版)</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; margin-bottom: 50px; }
+        canvas { 
+            border: 1px solid #ccc; 
+            margin-top: 20px;
+            max-width: 40%;
+            width: auto;
+            height: auto;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .controls { margin-top: 10px; }
+        
+        /* 横並び用のコンテナ */
+        .instruction-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 40px;
+        }
+
+        .instruction-images {
+            max-width: 50%;
+            height: auto;
+            width: 20%;
+        }
+
+        /* スマホ向けに調整 */
+        // @media (max-width: 768px) {
+        //    .instruction-images {
+        //        width: 100%;
+        //    }
+        //}
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        input, button, textarea {
+            margin-top: 20px;
+            padding: 10px;
+            font-size: 16px;
+            width: 40%;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+            overflow-y: auto;
+            padding: 10px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #downloadBtn {
+            width: 300px;
+            height: 60px;
+        }
+
+        #twitterShare {
+            margin-top: 20px;
+            padding: 20px;
+            font-size: 16px;
+            text-align: center;
+            display: inline-block;
+            background-color: #1DA1F2;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            height: 20px;
+            line-height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .font-size-container {
+            display: flex;
+            align-items: center; /* ボタンとテキストを縦位置中央揃え */
+            gap: 10px; /* テキストとボタンの間の余白 */
+            margin-bottom: 10px;
+        }
+        .font-size-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .font-size-buttons button {
+            padding: 5px 10px;
+            font-size: 14px;
+            width: 60px;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+    <h2>推し布教Photoめーかー!!(β版)</h2>
+
+    <div class="instruction-container" id="instructionContainer">
+        <img src="HowToUse.jpg" class="instruction-images">
+        <img src="Example.jpg" class="instruction-images">
+    </div>
+
+
+
+
+    <div class="controls">
+        <input type="file" id="imageUpload" accept="image/*">
+        
+        <!-- フォントサイズ選択ボタン（テキスト付き） -->
+        <div class="font-size-container">
+            <span>フォントサイズ選択:</span>
+            <div class="font-size-buttons">
+                <button onclick="changeFontSize('large')">大</button>
+                <button onclick="changeFontSize('medium')">中</button>
+                <button onclick="changeFontSize('small')">小</button>
+            </div>
+        </div>
+    
+        <textarea id="textInput" placeholder="テキストを入力(改行対応)"></textarea>
+        <button onclick="generateImage()">画像作成</button>
+    </div>
+
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <div class="action-buttons">
+        <button id="downloadBtn" style="display: none;" onclick="downloadImage()">画像をダウンロード！</button>
+        <a id="twitterShare" href="#" target="_blank" style="display: none;">ココからXへ共有！！</a>
+    </div>
+
+    <script>
+        function fillWrappedText(ctx, text, x, y, maxTextWidth, lineHeight) {
+            const lines = text.split('\n');
+            let wrappedLines = [];
+
+            lines.forEach(line => {
+                let words = line.split('');
+                let currentLine = '';
+                for (let i = 0; i < words.length; i++) {
+                    let testLine = currentLine + words[i];
+                    let testWidth = ctx.measureText(testLine).width;
+                    if (testWidth > maxTextWidth && i > 0) {
+                        wrappedLines.push(currentLine);
+                        currentLine = words[i];
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                wrappedLines.push(currentLine);
+            });
+
+            wrappedLines.forEach((line, index) => {
+                ctx.fillText(line, x, y + index * lineHeight);
+            });
+
+            return wrappedLines.join('\n');
+        }
+
+        let currentFontSize = 16; // デフォルトのフォントサイズ（中）
+
+        // フォントサイズ変更関数
+        function changeFontSize(size) {
+            const textArea = document.getElementById("textInput");
+            if (size === 'large') {
+                currentFontSize = 60;
+            } else if (size === 'small') {
+                currentFontSize = 30;
+            } else {
+                currentFontSize = 45;
+            }
+            textArea.style.fontSize = 14 + currentFontSize * 0.4　+ "px";
+        }
+
+        function generateImage() { //フォントサイズボタン対応
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            const input = document.getElementById("imageUpload").files[0];
+            const textArea = document.getElementById("textInput");
+            const text = textArea.value;
+            const template = new Image();
+            const userImage = new Image();
+
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                userImage.src = e.target.result;
+                userImage.onload = function() {
+                    const maxImageWidth = 1000;
+                    const maxImageHeight = 1000;
+                    let imgWidth = userImage.width;
+                    let imgHeight = userImage.height;
+
+                    if (imgWidth > maxImageWidth || imgHeight > maxImageHeight) {
+                        const aspectRatio = imgWidth / imgHeight;
+                        if (imgWidth > imgHeight) {
+                            imgWidth = maxImageWidth;
+                            imgHeight = maxImageWidth / aspectRatio;
+                        } else {
+                            imgHeight = maxImageHeight;
+                            imgWidth = maxImageHeight * aspectRatio;
+                        }
+                    }
+
+                    const imgAspectRatio = imgWidth / imgHeight;
+                    let templateSrc = (imgAspectRatio < 1) ? 'template2.jpg' : 'template.jpg';
+
+                    template.src = templateSrc;
+                    template.onload = function() {
+                        canvas.width = template.width;
+                        canvas.height = template.height;
+
+                        ctx.drawImage(template, 0, 0);
+
+                        ctx.save();
+                        ctx.translate(150, 150);
+                        ctx.rotate(6 * Math.PI / 180);
+                        ctx.drawImage(userImage, -imgWidth / 2 + 440, -imgHeight / 2 + 375, imgWidth, imgHeight);
+                        ctx.restore();
+
+                        //フォントサイズを更新
+                        ctx.font = `${currentFontSize}px Mv Boli`;
+                        ctx.fillStyle = "black";
+                        ctx.textAlign = "center";
+                        const textX = 545;
+                        const textY = 1470;
+                        const maxTextWidth = 960;
+                        const lineHeight = currentFontSize + 3; // 行間調整
+
+                        fillWrappedText(ctx, text, textX, textY, maxTextWidth, lineHeight);
+                        textArea.value = text;
+
+                        document.getElementById("downloadBtn").style.display = "inline";
+
+                        document.getElementById("twitterShare").href = `https://twitter.com/intent/tweet?text=%EF%BC%9C%0A%E6%8A%95%E7%A8%BF%E6%99%82%E3%81%AB%E3%81%AF%EF%BC%9C%EF%BC%9E%E5%86%85%E3%81%AE%E6%96%87%E5%AD%97%E6%B6%88%E3%81%97%E3%81%A6%E3%81%8F%E3%81%A0%E3%81%95%E3%81%84!!%0A%E3%83%9D%E3%82%B9%E3%83%88%E7%9B%B4%E5%89%8D%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF!!%0A%E2%91%A0%E7%94%BB%E5%83%8F%E8%B2%BC%E3%82%8A%E4%BB%98%E3%81%91OK%3F%EF%BC%88%E8%87%AA%E5%8B%95%E5%8C%96%E9%96%93%E3%81%AB%E5%90%88%E3%81%84%E3%81%BE%E3%81%9B%E3%82%93%E3%81%A7%E3%81%97%E3%81%9F%EF%BD%BD%EF%BE%90%EF%BE%8F%EF%BD%BE%EF%BE%9D...%EF%BC%89%0A%E2%91%A1VRide!%E5%86%99%E7%9C%9F%E9%A4%A8%E3%81%8B%E3%82%89%E6%8C%81%E3%81%A3%E3%81%A6%E3%81%8D%E3%81%9F%E4%BA%BA%E3%81%AF%E6%92%AE%E5%BD%B1%E8%80%85%E3%81%95%E3%82%93%E3%81%AE%E3%81%8A%E5%90%8D%E5%89%8D%E5%85%A5%E3%81%A3%E3%81%A6%E3%81%BE%E3%81%99%E3%81%8B%EF%BC%9F%0A%E2%91%A2%E4%BD%93%E8%A3%81%E3%81%A8%E3%81%8B%E7%A2%BA%E8%AA%8DOK%EF%BC%9F%0A%E2%91%A3%E3%80%8C%E6%8E%A8%E3%81%97%E5%B8%83%E6%95%99Photo%E3%82%81%E3%83%BC%E3%81%8B%E3%83%BC%E3%80%8D%E3%81%AE%E3%82%BF%E3%82%B0%E3%81%8C%E5%85%A5%E3%81%A3%E3%81%A6%E3%82%8B%E3%83%9D%E3%82%B9%E3%83%88%E3%81%AF%E8%87%AA%E5%88%86%E3%81%8CRP%E3%81%97%E3%81%A6%E5%9B%9E%E3%82%8A%E3%81%BE%E3%81%99%EF%BC%81%EF%BC%81%0A%0A%E5%B8%83%E6%95%99%E3%81%AA%E3%82%93%E3%81%A6%E3%81%AD%E3%81%87!!%E3%83%8A%E3%83%B3%E3%83%9C%E3%81%97%E3%81%A6%E3%82%82%E3%81%88%E3%81%88%E3%83%A2%E3%83%B3%E3%81%A7%E3%81%99%E3%81%8B%E3%82%89%E3%81%AD!!!!%0A%EF%BC%9E%0A%0A%0A%23%E6%8E%A8%E3%81%97%E5%B8%83%E6%95%99Photo%E3%82%81%E3%83%BC%E3%81%8B%E3%83%BC!!%E3%81%A7%E4%BD%9C%E6%88%90%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F%EF%BC%81%EF%BC%81`;
+                        document.getElementById("twitterShare").style.display = "inline";
+
+                        canvas.style.display = "block";
+                    };
+                };
+            };
+            fileReader.readAsDataURL(input);
+        }
+
+        
+        function downloadImage() {
+            const canvas = document.getElementById("canvas");
+
+            // 現在の日時を取得して「YYYYMMDD_HHMMSS」形式にする
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0'); // 0埋め
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+    
+            // ファイル名を「created_YYYYMMDD_HHMMSS.png」にする
+            const filename = `mission_${year}${month}${day}_${hours}${minutes}${seconds}.png`;
+
+            canvas.toBlob(blob => {
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = filename; // ここで新しいファイル名を適用
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }, "image/png");
+        }
+
+    </script>
+</body>
+</html>
